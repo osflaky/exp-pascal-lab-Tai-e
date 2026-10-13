@@ -1,0 +1,44 @@
+name: Test
+
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    strategy:
+      matrix:
+        include:
+        - os: windows-latest
+          expander_leg: windows-latest--x64
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: recursive
+
+    - uses: actions/setup-java@v6
+      with:
+        java-version: 17
+        distribution: temurin
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v5
+      with:
+        build-scan-publish: true
+        build-scan-terms-of-use-url: "https://gradle.com/terms-of-service"
+        build-scan-terms-of-use-agree: "yes"
+
+    - name: Check release generation
+      run: |
+        ./gradlew docs:all distZip fatJar
+
+    - name: Regression tests and code coverage
+      run: |
+        ./gradlew test jacocoTestReport --scan
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v7
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+    name: test [${{ matrix.expander_leg }}]
+    timeout-minutes: 150
